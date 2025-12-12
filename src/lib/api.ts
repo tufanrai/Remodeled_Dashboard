@@ -14,7 +14,7 @@ const authenticate_admin = axios.create({
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    "Content-Type": "multipart/form-data",
     Authorization: `Bearer ${Cookies.get("access")}`,
   },
 });
@@ -32,7 +32,7 @@ export const imageApiCreate = async (data: IImage) => {
 
 export const imageApiGetAll = async () => {
   try {
-    const response = await api.get("/gallery/upload/");
+    const response = await api.get("/gallery/");
     return response.data;
   } catch (err: any) {
     return err;
@@ -48,8 +48,9 @@ export const imageApiGetById = async (id: string) => {
   }
 };
 
-export const imageApiUpdate = async (data: IImage, id: string) => {
+export const imageApiUpdate = async (data: IImage) => {
   try {
+    const id = sessionStorage.getItem("file")!;
     const response = await api.put(`/gallery/upload/${id}`, data);
     return response.data;
   } catch (err: any) {
@@ -68,12 +69,12 @@ export const imageApiDelete = async (id: string) => {
 
 // Project API
 export const projectApi = {
-  create: (data: IProject) => api.post("/projects/upload/", data),
-  getAll: () => api.get("/projects"),
-  getById: (id: string) => api.get(`/projects/${id}`),
+  create: (data: IProject) => api.post("/files/upload/", data),
+  getAll: () => api.get("/files"),
+  getById: (id: string) => api.get(`/files/${id}`),
   update: (id: string, data: Partial<IProject>) =>
-    api.put(`/projects/upload/${id}`, data),
-  delete: (id: string) => api.delete(`/projects/upload/${id}`),
+    api.put(`/files/upload/${id}`, data),
+  delete: (id: string) => api.delete(`/files/upload/${id}`),
 };
 
 // News API

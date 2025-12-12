@@ -2,9 +2,9 @@ import * as yup from "yup";
 
 // Enums
 export enum EStatus {
-  Ongoing = "ongoing",
-  Planning = "planning",
-  Completed = "completed",
+  Ongoing = "Ongoing",
+  Planning = "Planning",
+  Completed = "Completed",
 }
 
 export enum EReports {
@@ -27,10 +27,6 @@ export const imageSchema = yup.object({
       "Please upload a file",
       (value) => value instanceof File
     ),
-  title: yup
-    .string()
-    .required("Title is required")
-    .max(100, "Title must be less than 100 characters"),
   category: yup.string().required("Category is required"),
   alt: yup
     .string()
@@ -38,11 +34,29 @@ export const imageSchema = yup.object({
     .max(200, "Alt text must be less than 200 characters"),
 });
 
+// Image Schema
+export const imageUpdateSchema = yup.object({
+  image: yup
+    .mixed<File>()
+    .test(
+      "fileExists",
+      "Please upload a file",
+      (value) => value instanceof File
+    ),
+  category: yup.string(),
+  alt: yup.string().max(200, "Alt text must be less than 200 characters"),
+});
+
 export interface IImage {
-  image: any;
-  title: string;
+  image: File;
   category: string;
   alt: string;
+}
+
+export interface ImageData {
+  url: string;
+  alt: string;
+  title?: string;
 }
 
 // Timeline Schema
@@ -84,7 +98,14 @@ export const projectSchema = yup.object({
     .min(1, "At least one feature is required")
     .required("Features are required"),
   fullDescription: yup.string().required("Full description is required"),
-  file: yup.string().required("File is required"),
+  file: yup
+    .mixed<File>()
+    .required("Please upload a file")
+    .test(
+      "fileExists",
+      "Please upload a file",
+      (value) => value instanceof File
+    ),
   technicalSpecs: techSpecsSchema.required("Technical specs are required"),
   timeline: yup
     .array()
@@ -97,7 +118,14 @@ export type IProject = yup.InferType<typeof projectSchema>;
 
 // News Schema
 export const newsSchema = yup.object({
-  file: yup.string().required("Image is required"),
+  file: yup
+    .mixed<File>()
+    .required("Please upload a file")
+    .test(
+      "fileExists",
+      "Please upload a file",
+      (value) => value instanceof File
+    ),
   title: yup
     .string()
     .required("Title is required")
@@ -115,7 +143,14 @@ export type INews = yup.InferType<typeof newsSchema>;
 
 // Reports Schema
 export const reportsSchema = yup.object({
-  file: yup.string().required("PDF file is required"),
+  file: yup
+    .mixed<File>()
+    .required("Please upload a file")
+    .test(
+      "fileExists",
+      "Please upload a file",
+      (value) => value instanceof File
+    ),
   title: yup
     .string()
     .required("Title is required")

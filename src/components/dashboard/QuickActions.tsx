@@ -1,5 +1,12 @@
 import { Link } from "react-router-dom";
-import { Image, Box, FileText, FolderOpen, Newspaper, Plus } from "lucide-react";
+import {
+  Image,
+  Box,
+  FileText,
+  FolderOpen,
+  Newspaper,
+  Plus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const actions = [
@@ -39,8 +46,8 @@ export function QuickActions() {
   return (
     <div className="rounded-xl bg-card p-6 shadow-card animate-slide-up">
       <h3 className="mb-6 text-lg font-semibold">Quick Actions</h3>
-      
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3">
         {actions.map((action) => (
           <Link
             key={action.path}
@@ -53,7 +60,9 @@ export function QuickActions() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-background/50">
               <action.icon className="h-6 w-6" />
             </div>
-            <span className="text-xs font-medium text-center">{action.label}</span>
+            <span className="text-xs font-medium text-center">
+              {action.label}
+            </span>
           </Link>
         ))}
       </div>

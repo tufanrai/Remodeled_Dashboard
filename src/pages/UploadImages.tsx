@@ -6,14 +6,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useMutation } from "@tanstack/react-query";
 import { imageApiCreate } from "@/lib/api";
 import UploadImageForm from "@/components/cards/UploadImageForm";
-
-const categories = [
-  "Construction",
-  "Site Visit",
-  "Equipment",
-  "Meeting",
-  "General",
-];
+import ImagesTable from "@/components/images/AllImages";
 
 const UploadImages = () => {
   return (
@@ -29,6 +22,7 @@ const UploadImages = () => {
         <div className="max-w-2xl">
           <UploadImageForm />
         </div>
+        <ImagesTable />
       </div>
     </DashboardLayout>
   );

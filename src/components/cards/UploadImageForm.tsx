@@ -4,16 +4,18 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { imageSchema } from "@/lib/validations";
 import { IImage } from "../interfaces/interfaces";
-import { useMutation } from "@tanstack/react-query";
+import { QueryClient, useMutation } from "@tanstack/react-query";
 import { imageApiCreate } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const UploadImageForm = () => {
+  const queryClient = new QueryClient();
   const { mutate, isPending } = useMutation({
     mutationFn: imageApiCreate,
     mutationKey: ["new image"],
     onSuccess: (data) => {
       toast.success(data?.message);
+      queryClient.invalidateQueries({ queryKey: ["images"] });
     },
     onError: (err) => {
       toast.error(err.message);
@@ -60,24 +62,6 @@ const UploadImageForm = () => {
       onSubmit={handleSubmit(logFile)}
       className="rounded-xl bg-card p-6 shadow-card animate-slide-up space-y-6"
     >
-      <div className="space-y-2 flex flex-col items-start justify-start gap-2">
-        <label
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          htmlFor="title"
-        >
-          Title
-        </label>
-        <input
-          id="title"
-          placeholder="Enter image collection title"
-          className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm`}
-          {...register("title")}
-        />
-        {errors.title && (
-          <p className="text-sm text-destructive">{errors.title.message}</p>
-        )}
-      </div>
-
       <div className="space-y-2  flex flex-col items-start justify-start gap-2">
         <label
           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

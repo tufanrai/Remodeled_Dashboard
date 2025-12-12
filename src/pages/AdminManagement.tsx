@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { adminSchema, type IAdmin } from "@/lib/validations";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import SuperAdminAuthorization from "@/components/hoc/SuperAdminAuth";
 
 interface Admin {
   id: string;
@@ -405,4 +406,4 @@ const AdminManagement = () => {
   );
 };
 
-export default AdminManagement;
+export default SuperAdminAuthorization(AdminManagement, ["Super admin"]);

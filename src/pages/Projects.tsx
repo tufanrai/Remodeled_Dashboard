@@ -1,133 +1,29 @@
-import { useState } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { FileUploadZone } from "@/components/upload/FileUploadZone";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  TechnicalSpecs,
-  TechnicalSpecsData,
-} from "@/components/projects/TechnicalSpecs";
-import {
-  ProjectTimeline,
-  Milestone,
-} from "@/components/projects/ProjectTimeline";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { ImageLightbox } from "@/components/ui/image-lightbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { FolderOpen, Eye, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  projectSchema,
-  EStatus,
-  type IProject,
-  type ITechSpecs,
-  type ITimeline,
-} from "@/lib/validations";
-import { useForm } from "react-hook-form";
+import React, { useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useMutation } from "@tanstack/react-query";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { EStatus, IProject, projectSchema } from "@/lib/validations";
+import { projectApi } from "@/lib/api";
+import toast from "react-hot-toast";
+import { Textarea } from "@/components/ui/textarea";
 
-const statusOptions = [
-  { label: "Ongoing", value: EStatus.Ongoing },
-  { label: "Planning", value: EStatus.Planning },
-  { label: "Completed", value: EStatus.Completed },
-];
-const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
-
-interface Project {
-  id: string;
-  title: string;
-  capacity: string;
-  status: string;
-  location: string;
-  startYear: string;
-  features: string;
-  description: string;
-  technicalSpecs: TechnicalSpecsData;
-  milestones: Milestone[];
-  images: string[];
-  createdAt: string;
-}
-
-const mockProjects: Project[] = [
-  {
-    id: "1",
-    title: "Upper Maulakalika Hydropower",
-    capacity: "50 MW",
-    status: "ongoing",
-    location: "Dolakha, Nepal",
-    startYear: "2022",
-    features: "High efficiency turbines, Environmental friendly",
-    description: "A major hydropower project in the region.",
-    technicalSpecs: {
-      projectType: "run-of-river",
-      headHeight: "180",
-      turbineType: "francis",
-      annualGeneration: "220",
-      gridConnection: "132kV line",
-    },
-    milestones: [{ id: "1", title: "Construction Started", year: "2022" }],
-    images: ["/placeholder.svg"],
-    createdAt: "2024-01-15",
-  },
-];
-
-const Projects = () => {
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [isEditing, setIsEditing] = useState<string | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxImages, setLightboxImages] = useState<
-    { url: string; title?: string }[]
-  >([]);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-
-  // Additional form state for complex nested data
-  const [technicalSpecs, setTechnicalSpecs] = useState<TechnicalSpecsData>({
-    projectType: "",
-    headHeight: "",
-    turbineType: "",
-    annualGeneration: "",
-    gridConnection: "",
-  });
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
+const ProjectForm = () => {
+  const [currentFeature, setCurrentFeature] = useState("");
 
   const {
     register,
+    control,
     handleSubmit,
+    formState: { errors },
     setValue,
     watch,
     reset,
-    formState: { errors, isSubmitting },
   } = useForm<IProject>({
     resolver: yupResolver(projectSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      capacity: "",
-      status: undefined,
-      location: "",
-      startYear: "",
       features: [],
-      fullDescription: "",
-      file: "",
+      timeline: [{ year: "", milestone: "" }],
       technicalSpecs: {
         Type: "",
         headHeight: "",
@@ -135,482 +31,421 @@ const Projects = () => {
         annualGeneration: "",
         gridConnection: "",
       },
-      timeline: [],
     },
   });
 
-  const status = watch("status");
-  const startYear = watch("startYear");
-
-  const resetForm = () => {
-    reset();
-    setTechnicalSpecs({
-      projectType: "",
-      headHeight: "",
-      turbineType: "",
-      annualGeneration: "",
-      gridConnection: "",
-    });
-    setMilestones([]);
-    setIsEditing(null);
-    setSelectedProject(null);
-  };
-
-  const handleFileSelect = (files: File[]) => {
-    if (files.length > 0) {
-      const fileUrl = URL.createObjectURL(files[0]);
-      setValue("file", fileUrl, { shouldValidate: true });
-    }
-  };
-
-  const convertSpecsToSchema = (specs: TechnicalSpecsData): ITechSpecs => ({
-    Type: specs.projectType,
-    headHeight: specs.headHeight,
-    turbineType: specs.turbineType,
-    annualGeneration: specs.annualGeneration,
-    gridConnection: specs.gridConnection,
+  const {
+    fields: timelineFields,
+    append: appendTimeline,
+    remove: removeTimeline,
+  } = useFieldArray({
+    control,
+    name: "timeline",
   });
 
-  const convertMilestonesToTimeline = (milestones: Milestone[]): ITimeline[] =>
-    milestones.map((m) => ({ year: m.year, milestone: m.title }));
+  const features = watch("features") || [];
+
+  // Mutation
+  const { mutate, isPending } = useMutation({
+    mutationFn: projectApi.create,
+    onSuccess: (data) => {
+      toast.success(data?.data.message);
+      reset();
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    },
+  });
 
   const onSubmit = (data: IProject) => {
-    // Prepare full data with technical specs and timeline
-    const fullData = {
-      ...data,
-      technicalSpecs: convertSpecsToSchema(technicalSpecs),
-      timeline: convertMilestonesToTimeline(milestones),
-    };
-
-    console.log("Project Form Data:", fullData);
-
-    if (isEditing && selectedProject) {
-      setProjects(
-        projects.map((p) =>
-          p.id === isEditing
-            ? {
-                ...p,
-                title: data.title,
-                capacity: data.capacity,
-                status: data.status,
-                location: data.location,
-                startYear: data.startYear,
-                features: Array.isArray(data.features)
-                  ? data.features.join(", ")
-                  : "",
-                description: data.fullDescription,
-                technicalSpecs,
-                milestones,
-                images: [data.file || p.images[0]],
-              }
-            : p
-        )
-      );
-      toast.success("Project updated successfully");
-    } else {
-      const newProject: Project = {
-        id: Date.now().toString(),
-        title: data.title,
-        capacity: data.capacity,
-        status: data.status,
-        location: data.location,
-        startYear: data.startYear,
-        features: Array.isArray(data.features) ? data.features.join(", ") : "",
-        description: data.fullDescription,
-        technicalSpecs,
-        milestones,
-        images: [data.file],
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      setProjects([...projects, newProject]);
-      toast.success("Project created successfully");
-    }
-    resetForm();
+    mutate(data);
   };
 
-  const handleEdit = (project: Project) => {
-    setIsEditing(project.id);
-    setSelectedProject(project);
-    setValue("title", project.title);
-    setValue("capacity", project.capacity);
-    setValue("status", project.status as EStatus);
-    setValue("location", project.location);
-    setValue("startYear", project.startYear);
+  const addFeature = () => {
+    if (currentFeature.trim()) {
+      setValue("features", [...features, currentFeature.trim()]);
+      setCurrentFeature("");
+    }
+  };
+
+  const removeFeature = (index: number) => {
     setValue(
       "features",
-      project.features.split(",").map((f) => f.trim())
+      features.filter((_, i) => i !== index)
     );
-    setValue("description", project.description);
-    setValue("fullDescription", project.description);
-    setValue("file", project.images[0] || "");
-    setTechnicalSpecs(project.technicalSpecs);
-    setMilestones(project.milestones);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleDelete = () => {
-    if (!selectedProject) return;
-    setProjects(projects.filter((p) => p.id !== selectedProject.id));
-    setShowDeleteDialog(false);
-    setSelectedProject(null);
-    toast.success("Project deleted successfully");
-  };
-
-  const openDeleteDialog = (project: Project) => {
-    setSelectedProject(project);
-    setShowDeleteDialog(true);
-  };
-
-  const openLightbox = (project: Project) => {
-    setLightboxImages(
-      project.images.map((url) => ({ url, title: project.title }))
-    );
-    setLightboxIndex(0);
-    setLightboxOpen(true);
-  };
-
-  // Update technical specs in form when component changes
-  const handleTechnicalSpecsChange = (specs: TechnicalSpecsData) => {
-    setTechnicalSpecs(specs);
-    setValue("technicalSpecs", convertSpecsToSchema(specs), {
-      shouldValidate: true,
-    });
-  };
-
-  // Update milestones in form when component changes
-  const handleMilestonesChange = (newMilestones: Milestone[]) => {
-    setMilestones(newMilestones);
-    setValue("timeline", convertMilestonesToTimeline(newMilestones), {
-      shouldValidate: true,
-    });
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="animate-fade-in">
-          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Upload Reports</h1>
           <p className="text-muted-foreground">
-            Upload and manage project details
+            Upload annual and semi-annual reports
           </p>
         </div>
+        <div className="max-w-2xl">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="rounded-xl bg-card p-6 shadow-card animate-slide-up space-y-6"
+          >
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-700">
+                Basic Information
+              </h2>
 
-        {/* Upload Form */}
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="rounded-xl bg-card p-6 shadow-card animate-slide-up space-y-6"
-        >
-          <h2 className="text-lg font-semibold">
-            {isEditing ? "Edit Project" : "Add New Project"}
-          </h2>
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Title
+                </label>
+                <input
+                  {...register("title")}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                />
+                {errors.title && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="projectTitle">Project Title</Label>
-            <Input
-              id="projectTitle"
-              placeholder="Enter project title"
-              className={`bg-muted/30 ${
-                errors.title ? "border-destructive" : ""
-              }`}
-              {...register("title")}
-            />
-            {errors.title && (
-              <p className="text-sm text-destructive">{errors.title.message}</p>
-            )}
-          </div>
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Description
+                </label>
+                <Textarea
+                  {...register("description")}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {errors.description && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="capacity">Capacity</Label>
-              <Input
-                id="capacity"
-                placeholder="e.g., 50 MW"
-                className={`bg-muted/30 ${
-                  errors.capacity ? "border-destructive" : ""
-                }`}
-                {...register("capacity")}
-              />
-              {errors.capacity && (
-                <p className="text-sm text-destructive">
-                  {errors.capacity.message}
-                </p>
-              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Capacity
+                  </label>
+                  <input
+                    {...register("capacity")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.capacity && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.capacity.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Status
+                  </label>
+                  <select
+                    {...register("status")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select status</option>
+                    {Object.values(EStatus).map((status) => (
+                      <option key={status} value={status}>
+                        {status.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.status && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.status.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Location
+                  </label>
+                  <input
+                    {...register("location")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.location && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.location.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Start Year
+                  </label>
+                  <input
+                    {...register("startYear")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.startYear && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.startYear.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Full Description
+                </label>
+                <Textarea
+                  {...register("fullDescription")}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {errors.fullDescription && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.fullDescription.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Project Image
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setValue("file", file);
+                    }
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                />
+                {errors.file && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.file.message}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={status}
-                onValueChange={(value) =>
-                  setValue("status", value as EStatus, { shouldValidate: true })
-                }
-              >
-                <SelectTrigger
-                  className={`bg-muted/30 ${
-                    errors.status ? "border-destructive" : ""
-                  }`}
+            {/* Features */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-700">Features</h2>
+
+              <div className="flex gap-2">
+                <input
+                  value={currentFeature}
+                  onChange={(e) => setCurrentFeature(e.target.value)}
+                  placeholder="Add a feature"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  onKeyPress={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), addFeature())
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={addFeature}
+                  className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
                 >
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border shadow-lg">
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.status && (
-                <p className="text-sm text-destructive">
-                  {errors.status.message}
-                </p>
-              )}
-            </div>
-          </div>
+                  Add
+                </button>
+              </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="Enter project location"
-                className={`bg-muted/30 ${
-                  errors.location ? "border-destructive" : ""
-                }`}
-                {...register("location")}
-              />
-              {errors.location && (
-                <p className="text-sm text-destructive">
-                  {errors.location.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="startYear">Start Year</Label>
-              <Select
-                value={startYear}
-                onValueChange={(value) =>
-                  setValue("startYear", value, { shouldValidate: true })
-                }
-              >
-                <SelectTrigger
-                  className={`bg-muted/30 ${
-                    errors.startYear ? "border-destructive" : ""
-                  }`}
-                >
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border shadow-lg">
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.startYear && (
-                <p className="text-sm text-destructive">
-                  {errors.startYear.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="features">Features</Label>
-            <Textarea
-              id="features"
-              placeholder="Enter project features (comma separated)"
-              className={`bg-muted/30 min-h-[80px] ${
-                errors.features ? "border-destructive" : ""
-              }`}
-              {...register("description")}
-              onChange={(e) => {
-                setValue(
-                  "features",
-                  e.target.value
-                    .split(",")
-                    .map((f) => f.trim())
-                    .filter(Boolean),
-                  { shouldValidate: true }
-                );
-                setValue("description", e.target.value, {
-                  shouldValidate: true,
-                });
-              }}
-            />
-            {errors.features && (
-              <p className="text-sm text-destructive">
-                {errors.features.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="fullDescription">Full Description</Label>
-            <Textarea
-              id="fullDescription"
-              placeholder="Enter detailed project description"
-              className={`bg-muted/30 min-h-[120px] ${
-                errors.fullDescription ? "border-destructive" : ""
-              }`}
-              {...register("fullDescription")}
-            />
-            {errors.fullDescription && (
-              <p className="text-sm text-destructive">
-                {errors.fullDescription.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <TechnicalSpecs
-              specs={technicalSpecs}
-              onChange={handleTechnicalSpecsChange}
-            />
-            {errors.technicalSpecs && (
-              <p className="text-sm text-destructive">
-                Please fill all technical specs
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <ProjectTimeline
-              milestones={milestones}
-              onChange={handleMilestonesChange}
-            />
-            {errors.timeline && (
-              <p className="text-sm text-destructive">
-                At least one timeline entry is required
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <FileUploadZone
-              accept="image/*,.glb,.fbx,.obj"
-              multiple
-              maxFiles={10}
-              label="Upload Project Files & Images"
-              onFilesSelected={handleFileSelect}
-            />
-            {errors.file && (
-              <p className="text-sm text-destructive">{errors.file.message}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            {isEditing && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetForm}
-                disabled={isSubmitting}
-              >
-                Cancel Edit
-              </Button>
-            )}
-            <Button type="submit" disabled={isSubmitting}>
-              <FolderOpen className="mr-2 h-4 w-4" />
-              {isSubmitting
-                ? "Saving..."
-                : isEditing
-                ? "Update Project"
-                : "Save Project"}
-            </Button>
-          </div>
-        </form>
-
-        {/* Projects List */}
-        <div className="rounded-xl bg-card shadow-card overflow-hidden animate-slide-up">
-          <div className="p-4 border-b border-border">
-            <h2 className="text-lg font-semibold">All Projects</h2>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead>Title</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Year</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium">{project.title}</TableCell>
-                  <TableCell>{project.capacity}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        project.status === "completed"
-                          ? "bg-success/10 text-success"
-                          : project.status === "ongoing"
-                          ? "bg-info/10 text-info"
-                          : "bg-warning/10 text-warning"
-                      }`}
+              <div className="space-y-2">
+                {features.map((feature, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 bg-gray-50 p-2 rounded"
+                  >
+                    <span className="flex-1">{feature}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFeature(index)}
+                      className="flex items-center justify-center py-2 px-5 text-white bg-red-600 rounded-md hover:bg-red-700 ease duration-300"
                     >
-                      {project.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{project.location}</TableCell>
-                  <TableCell>{project.startYear}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openLightbox(project)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(project)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openDeleteDialog(project)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {errors.features && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.features.message}
+                </p>
+              )}
+            </div>
+
+            {/* Technical Specs */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-700">
+                Technical Specifications
+              </h2>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Type
+                  </label>
+                  <input
+                    {...register("technicalSpecs.Type")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.technicalSpecs?.Type && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.technicalSpecs.Type.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Head Height
+                  </label>
+                  <input
+                    {...register("technicalSpecs.headHeight")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.technicalSpecs?.headHeight && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.technicalSpecs.headHeight.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Turbine Type
+                  </label>
+                  <input
+                    {...register("technicalSpecs.turbineType")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.technicalSpecs?.turbineType && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.technicalSpecs.turbineType.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Annual Generation
+                  </label>
+                  <input
+                    {...register("technicalSpecs.annualGeneration")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.technicalSpecs?.annualGeneration && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.technicalSpecs.annualGeneration.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Grid Connection
+                  </label>
+                  <input
+                    {...register("technicalSpecs.gridConnection")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  />
+                  {errors.technicalSpecs?.gridConnection && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.technicalSpecs.gridConnection.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-700">Timeline</h2>
+
+              {timelineFields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="flex gap-4 items-start bg-gray-50 p-4 rounded"
+                >
+                  <div className="flex-1">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Year
+                    </label>
+                    <input
+                      {...register(`timeline.${index}.year`)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    />
+                    {errors.timeline?.[index]?.year && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.timeline[index]?.year?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Milestone
+                    </label>
+                    <input
+                      {...register(`timeline.${index}.milestone`)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    />
+                    {errors.timeline?.[index]?.milestone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.timeline[index]?.milestone?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {timelineFields.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTimeline(index)}
+                      className="flex items-center justify-center py-2 px-5 text-white bg-red-600 rounded-md hover:bg-red-700 ease duration-300"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               ))}
-            </TableBody>
-          </Table>
+
+              <button
+                type="button"
+                onClick={() => appendTimeline({ year: "", milestone: "" })}
+                className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
+              >
+                Add Timeline Entry
+              </button>
+              {errors.timeline && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.timeline.message}
+                </p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-4">
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
+              >
+                Submit Project
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-
-      <ConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title="Delete Project"
-        description={`Are you sure you want to delete "${selectedProject?.title}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
-        variant="destructive"
-      />
-
-      <ImageLightbox
-        images={lightboxImages}
-        currentIndex={lightboxIndex}
-        open={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-        onNavigate={setLightboxIndex}
-      />
     </DashboardLayout>
   );
 };
 
-export default Projects;
+export default ProjectForm;

@@ -56,21 +56,11 @@ const Index = () => {
         </div>
 
         {/* Quick Actions */}
-        <QuickActions />
 
         {/* Recent Uploads */}
         <div className="grid gap-6 lg:grid-cols-2">
+          <QuickActions />
           <RecentUploads />
-
-          {/* Activity Chart Placeholder */}
-          <div className="rounded-xl bg-card p-6 shadow-card animate-slide-up">
-            <h3 className="mb-6 text-lg font-semibold">Upload Activity</h3>
-            <div className="flex h-64 items-center justify-center rounded-lg bg-muted/30">
-              <p className="text-sm text-muted-foreground">
-                Activity chart coming soon
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </DashboardLayout>
