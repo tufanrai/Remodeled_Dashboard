@@ -7,23 +7,23 @@ import { EStatus, IProject, projectSchema } from "@/lib/validations";
 import { projectApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Textarea } from "@/components/ui/textarea";
+import ProjectsTable from "@/components/projects/ProjectsTable";
+import { useNavigate } from "react-router-dom";
 
 const ProjectForm = () => {
-  const [currentFeature, setCurrentFeature] = useState("");
-
+  const navigate = useNavigate();
   const {
     register,
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
     reset,
   } = useForm<IProject>({
     resolver: yupResolver(projectSchema),
     defaultValues: {
-      features: [],
-      timeline: [{ year: "", milestone: "" }],
+      features: "",
+      timeline: "",
       technicalSpecs: {
         Type: "",
         headHeight: "",
@@ -34,22 +34,12 @@ const ProjectForm = () => {
     },
   });
 
-  const {
-    fields: timelineFields,
-    append: appendTimeline,
-    remove: removeTimeline,
-  } = useFieldArray({
-    control,
-    name: "timeline",
-  });
-
-  const features = watch("features") || [];
-
   // Mutation
   const { mutate, isPending } = useMutation({
     mutationFn: projectApi.create,
     onSuccess: (data) => {
       toast.success(data?.data.message);
+      navigate("/");
       reset();
     },
     onError: (error: any) => {
@@ -57,22 +47,8 @@ const ProjectForm = () => {
     },
   });
 
-  const onSubmit = (data: IProject) => {
+  const onsubmit = (data: IProject) => {
     mutate(data);
-  };
-
-  const addFeature = () => {
-    if (currentFeature.trim()) {
-      setValue("features", [...features, currentFeature.trim()]);
-      setCurrentFeature("");
-    }
-  };
-
-  const removeFeature = (index: number) => {
-    setValue(
-      "features",
-      features.filter((_, i) => i !== index)
-    );
   };
 
   return (
@@ -86,7 +62,7 @@ const ProjectForm = () => {
         </div>
         <div className="max-w-2xl">
           <form
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={handleSubmit(onsubmit)}
             className="rounded-xl bg-card p-6 shadow-card animate-slide-up space-y-6"
           >
             {/* Basic Information */}
@@ -242,39 +218,10 @@ const ProjectForm = () => {
 
               <div className="flex gap-2">
                 <input
-                  value={currentFeature}
-                  onChange={(e) => setCurrentFeature(e.target.value)}
+                  {...register("features")}
                   placeholder="Add a feature"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                  onKeyPress={(e) =>
-                    e.key === "Enter" && (e.preventDefault(), addFeature())
-                  }
                 />
-                <button
-                  type="button"
-                  onClick={addFeature}
-                  className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
-                >
-                  Add
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {features.map((feature, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-gray-50 p-2 rounded"
-                  >
-                    <span className="flex-1">{feature}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFeature(index)}
-                      className="flex items-center justify-center py-2 px-5 text-white bg-red-600 rounded-md hover:bg-red-700 ease duration-300"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
               </div>
               {errors.features && (
                 <p className="text-red-500 text-sm mt-1">
@@ -371,60 +318,13 @@ const ProjectForm = () => {
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-gray-700">Timeline</h2>
 
-              {timelineFields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className="flex gap-4 items-start bg-gray-50 p-4 rounded"
-                >
-                  <div className="flex-1">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Year
-                    </label>
-                    <input
-                      {...register(`timeline.${index}.year`)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                    />
-                    {errors.timeline?.[index]?.year && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.timeline[index]?.year?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Milestone
-                    </label>
-                    <input
-                      {...register(`timeline.${index}.milestone`)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                    />
-                    {errors.timeline?.[index]?.milestone && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.timeline[index]?.milestone?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {timelineFields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTimeline(index)}
-                      className="flex items-center justify-center py-2 px-5 text-white bg-red-600 rounded-md hover:bg-red-700 ease duration-300"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => appendTimeline({ year: "", milestone: "" })}
-                className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
-              >
-                Add Timeline Entry
-              </button>
+              <input
+                type="text"
+                placeholder="Year: milestone,..."
+                defaultValue={"2025: successfully planed the project, ..."}
+                {...register("timeline")}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+              />
               {errors.timeline && (
                 <p className="text-red-500 text-sm mt-1">
                   {errors.timeline.message}
@@ -436,12 +336,16 @@ const ProjectForm = () => {
             <div className="pt-4">
               <button
                 type="submit"
+                disabled={isPending}
                 className="flex items-center justify-center gap-2 rounded-md hover:bg-primary bg-primary/90 ease duration-300 py-2 px-5 text-white"
               >
-                Submit Project
+                {isPending ? <>Submitting...</> : <>Submit Project</>}
               </button>
             </div>
           </form>
+        </div>
+        <div className="max-w-2xl">
+          <ProjectsTable />
         </div>
       </div>
     </DashboardLayout>

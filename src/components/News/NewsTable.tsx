@@ -3,96 +3,79 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Eye, Pencil, Trash2, X } from "lucide-react";
-import { IImage, imageUpdateSchema } from "@/lib/validations";
-import { imageApiDelete, imageApiGetAll, imageApiUpdate } from "@/lib/api";
+import { newsSchema, INews } from "@/lib/validations";
+import { newsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 
-interface ImageResponse extends Omit<IImage, "image"> {
-  _id?: string;
-  image?: File;
-  url?: string;
+interface NewsResponse extends Omit<INews, "file"> {
+  _id: string;
+  file: File;
+  url: string;
 }
 
-export default function ImagesTable() {
-  const [viewModal, setViewModal] = useState<ImageResponse | undefined>(
-    undefined
-  );
-  const [editModal, setEditModal] = useState<ImageResponse | null>(null);
+export default function NewsTable() {
+  const [viewModal, setViewModal] = useState<NewsResponse | null>(null);
+  const [editModal, setEditModal] = useState<NewsResponse | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // News's data fetching
   const { data, isLoading, error } = useQuery({
-    queryKey: ["images"],
-    queryFn: imageApiGetAll,
+    queryKey: ["news"],
+    queryFn: newsApi.getAll,
   });
 
   useEffect(() => {
-    if (data && data.message) {
-      toast.success(data.message);
+    if (data && data?.data) {
+      toast.success(data?.data?.message);
     }
   }, [data]);
 
-  //   Updating the images
   const {
     setValue,
     register,
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm({
-    resolver: yupResolver(imageUpdateSchema),
+  } = useForm<INews>({
+    resolver: yupResolver(newsSchema),
   });
 
-  //   Update mutation function
   const updateMutation = useMutation({
-    mutationFn: imageApiUpdate,
-    mutationKey: ["Update Imagedata"],
+    mutationFn: newsApi.update,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["images"] });
-      toast.success(data.data.message);
+      queryClient.invalidateQueries({ queryKey: ["news"] });
       setEditModal(null);
       reset();
     },
   });
 
-  //   delete image mutation function
   const deleteMutation = useMutation({
-    mutationFn: imageApiDelete,
+    mutationFn: newsApi.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["images"] });
+      queryClient.invalidateQueries({ queryKey: ["news"] });
       setDeleteConfirm(null);
-    },
-    onError: (err: any) => {
-      toast.error(err.message);
     },
   });
 
-  // To be handeled when update image data
-  const updateImageData = (updatedData: IImage) => {
+  const onSubmit = (updateValue: INews) => {
     sessionStorage.setItem("file", editModal._id);
-    setTimeout(() => {
-      updateMutation.mutate(updatedData);
-    }, 1000);
-    // console.log(data);
+    updateMutation.mutate(updateValue);
   };
 
-  if (isLoading) {
+  if (isLoading)
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
         Error: {(error as Error).message}
       </div>
     );
-  }
-
-  console.log(viewModal?.url);
 
   return (
     <>
@@ -101,10 +84,13 @@ export default function ImagesTable() {
           <thead className="bg-gray-100 border-b">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                Title
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
                 Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Alt Text
+                Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
                 Actions
@@ -112,37 +98,34 @@ export default function ImagesTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {data && data?.files.length > 0 ? (
-              data.files.map((item) => (
+            {data && data?.data?.all_news.length > 0 ? (
+              data?.data?.all_news.map((item) => (
                 <tr key={item._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {item.category}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {item.alt}
+                  <td className="px-6 py-4 text-sm">{item.title}</td>
+                  <td className="px-6 py-4 text-sm">{item.category}</td>
+                  <td className="px-6 py-4 text-sm">
+                    {new Date(item.date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <div className="flex gap-2">
                       <button
                         onClick={() => setViewModal(item)}
                         className="text-blue-600 hover:text-blue-800 p-1"
-                        title="View"
                       >
                         <Eye size={18} />
                       </button>
                       <button
                         onClick={() => {
                           setEditModal(item);
+                          reset(item);
                         }}
                         className="text-green-600 hover:text-green-800 p-1"
-                        title="Edit"
                       >
                         <Pencil size={18} />
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(item._id)}
                         className="text-red-600 hover:text-red-800 p-1"
-                        title="Delete"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -153,7 +136,7 @@ export default function ImagesTable() {
             ) : (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                  No images available
+                  No news available
                 </td>
               </tr>
             )}
@@ -164,9 +147,9 @@ export default function ImagesTable() {
       {/* View Modal */}
       {viewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-xl font-semibold">View Image</h3>
+              <h3 className="text-xl font-semibold">View News</h3>
               <button onClick={() => setViewModal(null)}>
                 <X size={24} />
               </button>
@@ -175,17 +158,27 @@ export default function ImagesTable() {
               {viewModal && viewModal?.url ? (
                 <img
                   src={viewModal.url}
-                  alt={viewModal.alt}
                   className="w-full h-64 object-cover rounded"
                 />
               ) : (
                 ""
               )}
               <div>
+                <strong>Title:</strong> {viewModal.title}
+              </div>
+              <div>
                 <strong>Category:</strong> {viewModal.category}
               </div>
               <div>
-                <strong>Alt Text:</strong> {viewModal.alt}
+                <strong>Date:</strong>{" "}
+                {new Date(viewModal.date).toLocaleDateString()}
+              </div>
+              <div>
+                <strong>Excerpt:</strong> {viewModal.excerpt}
+              </div>
+              <div>
+                <strong>Description:</strong>{" "}
+                <p className="mt-2 text-gray-700">{viewModal.description}</p>
               </div>
             </div>
             <div className="flex justify-end p-6 border-t">
@@ -202,10 +195,10 @@ export default function ImagesTable() {
 
       {/* Edit Modal */}
       {editModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-2xl w-full my-8">
             <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-xl font-semibold">Edit Image</h3>
+              <h3 className="text-xl font-semibold">Edit News</h3>
               <button
                 onClick={() => {
                   setEditModal(null);
@@ -215,41 +208,73 @@ export default function ImagesTable() {
                 <X size={24} />
               </button>
             </div>
-            <form
-              onSubmit={handleSubmit(updateImageData)}
-              className="p-6 space-y-4"
-            >
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Image
-                </label>
+                <label className="block text-sm font-medium mb-1">File</label>
                 <input
                   type="file"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      setValue("image", file);
+                      setValue("file", file);
                     }
                   }}
                   accept=".png, .jpg, .jpeg"
-                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm`}
+                  className="w-full border rounded px-3 py-2"
                 />
-                {errors && errors.image ? (
+                {errors.file && (
                   <p className="text-red-500 text-xs mt-1">
-                    {errors.image.message}
+                    {errors.file.message}
                   </p>
-                ) : (
-                  ""
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                <label className="block text-sm font-medium mb-1">Title</label>
+                <input
+                  {...register("title")}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.title && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Excerpt
+                </label>
+                <textarea
+                  {...register("excerpt")}
+                  rows={3}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.excerpt && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.excerpt.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Date</label>
+                <input
+                  type="date"
+                  {...register("date")}
+                  className="w-full border rounded px-3 py-2"
+                />
+                {errors.date && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.date.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
                   Category
                 </label>
                 <input
-                  defaultValue={editModal.category}
                   {...register("category")}
-                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm`}
+                  className="w-full border rounded px-3 py-2"
                 />
                 {errors.category && (
                   <p className="text-red-500 text-xs mt-1">
@@ -258,23 +283,23 @@ export default function ImagesTable() {
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Alt Text
+                <label className="block text-sm font-medium mb-1">
+                  Description
                 </label>
-                <input
-                  defaultValue={editModal.alt}
-                  {...register("alt")}
-                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm`}
+                <textarea
+                  {...register("description")}
+                  rows={4}
+                  className="w-full border rounded px-3 py-2"
                 />
-                {errors.alt && (
+                {errors.description && (
                   <p className="text-red-500 text-xs mt-1">
-                    {errors.alt.message}
+                    {errors.description.message}
                   </p>
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <button
-                  type="reset"
+                  type="button"
                   onClick={() => {
                     setEditModal(null);
                     reset();
@@ -285,6 +310,7 @@ export default function ImagesTable() {
                 </button>
                 <button
                   type="submit"
+                  disabled={updateMutation.isPending}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                   {updateMutation.isPending ? "Updating..." : "Update"}
@@ -301,7 +327,7 @@ export default function ImagesTable() {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-xl font-semibold mb-4">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this image?
+              Are you sure you want to delete this news article?
             </p>
             <div className="flex justify-end gap-2">
               <button

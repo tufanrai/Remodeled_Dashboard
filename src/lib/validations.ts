@@ -93,8 +93,7 @@ export const projectSchema = yup.object({
   location: yup.string().required("Location is required"),
   startYear: yup.string().required("Start year is required"),
   features: yup
-    .array()
-    .of(yup.string().required())
+    .string()
     .min(1, "At least one feature is required")
     .required("Features are required"),
   fullDescription: yup.string().required("Full description is required"),
@@ -108,13 +107,41 @@ export const projectSchema = yup.object({
     ),
   technicalSpecs: techSpecsSchema.required("Technical specs are required"),
   timeline: yup
-    .array()
-    .of(timelineSchema)
+    .string()
     .min(1, "At least one timeline entry is required")
     .required("Timeline is required"),
 });
 
 export type IProject = yup.InferType<typeof projectSchema>;
+
+// Update project
+export const updateProjectSchema = yup.object({
+  title: yup
+    .string()
+    .required("Title is required")
+    .max(200, "Title must be less than 200 characters"),
+  description: yup.string().required("Description is required"),
+  capacity: yup.string().required("Capacity is required"),
+  status: yup
+    .mixed<EStatus>()
+    .oneOf(Object.values(EStatus))
+    .required("Status is required"),
+  location: yup.string().required("Location is required"),
+  startYear: yup.string().required("Start year is required"),
+  features: yup
+    .string()
+    .min(1, "At least one feature is required")
+    .required("Features are required"),
+  fullDescription: yup.string().required("Full description is required"),
+  file: yup.mixed<File>(),
+  technicalSpecs: techSpecsSchema.required("Technical specs are required"),
+  timeline: yup
+    .string()
+    .min(1, "At least one timeline entry is required")
+    .required("Timeline is required"),
+});
+
+export type IUpdateProject = yup.InferType<typeof updateProjectSchema>;
 
 // News Schema
 export const newsSchema = yup.object({
@@ -222,10 +249,6 @@ export const registerSchema = yup.object({
     .string()
     .required("please specify your role")
     .oneOf([ERoles.Admin, ERoles.SuperAdmin], "role didn't match"),
-  confirm_password: yup
-    .string()
-    .required("please re enter your password")
-    .oneOf([yup.ref("password")], "password did not match"),
 });
 
 // Login schema

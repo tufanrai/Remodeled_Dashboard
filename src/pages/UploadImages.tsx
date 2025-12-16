@@ -22,7 +22,10 @@ const UploadImages = () => {
         <div className="max-w-2xl">
           <UploadImageForm />
         </div>
-        <ImagesTable />
+
+        <div className="max-w-2xl">
+          <ImagesTable />
+        </div>
       </div>
     </DashboardLayout>
   );

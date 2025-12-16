@@ -1,7 +1,11 @@
 import axios from "axios";
-import type { IImage, ILogin } from "@/components/interfaces/interfaces";
+import type {
+  IImage,
+  ILogin,
+  IRegister,
+} from "@/components/interfaces/interfaces";
 import Cookies from "js-cookie";
-import { IProject, INews, IReports } from "./validations";
+import { IProject, INews, IReports, IUpdateProject } from "./validations";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -69,11 +73,14 @@ export const imageApiDelete = async (id: string) => {
 
 // Project API
 export const projectApi = {
-  create: (data: IProject) => api.post("/files/upload/", data),
+  create: (data: any) => api.post("/files/upload/", data),
   getAll: () => api.get("/files"),
   getById: (id: string) => api.get(`/files/${id}`),
-  update: (id: string, data: Partial<IProject>) =>
-    api.put(`/files/upload/${id}`, data),
+  update: async (data: IUpdateProject) => {
+    const id = sessionStorage.getItem("file");
+    const resp = await authenticate_admin.put(`/files/upload/${id}`, data);
+    return resp;
+  },
   delete: (id: string) => api.delete(`/files/upload/${id}`),
 };
 
@@ -82,9 +89,12 @@ export const newsApi = {
   create: (data: INews) => api.post("/news/upload/", data),
   getAll: () => api.get("/news"),
   getById: (id: string) => api.get(`/news/${id}`),
-  update: (id: string, data: Partial<INews>) =>
-    api.put(`/news/upload/${id}`, data),
-  delete: (id: string) => api.delete(`/news/upload/${id}`),
+  update: async (data: Partial<INews>) => {
+    const id = sessionStorage.getItem("file");
+    const resp = await api.put(`/news/update/${id}`, data);
+    return resp.data;
+  },
+  delete: (id: string) => api.delete(`/news/update/${id}`),
 };
 
 // Reports API
@@ -92,8 +102,10 @@ export const reportsApi = {
   create: (data: IReports) => api.post("/reports/upload/", data),
   getAll: () => api.get("/reports"),
   getById: (id: string) => api.get(`/reports/${id}`),
-  update: (id: string, data: Partial<IReports>) =>
-    api.put(`/reports/upload/${id}`, data),
+  update: (data: Partial<IReports>) => {
+    const id = sessionStorage.getItem("file");
+    api.put(`/reports/upload/${id}`, data);
+  },
   delete: (id: string) => api.delete(`/reports/upload/${id}`),
 };
 
@@ -105,6 +117,20 @@ export const logAdmin = async (data: ILogin) => {
   } catch (err: any) {
     return err.message;
   }
+};
+
+// Register Admin API
+export const registerApi = {
+  create: (data: IRegister) =>
+    authenticate_admin.post("api/auth/register", data),
+  getAll: () => api.get("/user/"),
+  getById: (id: string) => api.get(`/user/${id}`),
+  update: async (data: IRegister) => {
+    const id = sessionStorage.getItem("admin");
+    const resp = await authenticate_admin.put(`/user/update/${id}`, data);
+    return resp.data;
+  },
+  delete: (id: string) => authenticate_admin.delete(`/user/${id}`),
 };
 
 export default api;

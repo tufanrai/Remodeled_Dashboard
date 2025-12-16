@@ -7,6 +7,7 @@ import { newsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Textarea } from "@/components/ui/textarea";
+import NewsTable from "@/components/News/NewsTable";
 
 const NewsForm = () => {
   const {
@@ -180,6 +181,9 @@ const NewsForm = () => {
               </button>
             </div>
           </form>
+        </div>
+        <div className="max-w-2xl">
+          <NewsTable />
         </div>
       </div>
     </DashboardLayout>

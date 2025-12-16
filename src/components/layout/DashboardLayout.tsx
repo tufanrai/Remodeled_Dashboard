@@ -54,7 +54,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />
-
       {/* Main Content */}
       <div className="pl-16 lg:pl-64 transition-all duration-300">
         {/* Header */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,64 +19,63 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { UserPlus, Pencil, Trash2, Eye, EyeOff, Shield } from "lucide-react";
-import { toast } from "sonner";
-import { adminSchema, type IAdmin } from "@/lib/validations";
+import { UserPlus, Pencil, Trash2, Shield } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { ERoles, registerSchema } from "@/lib/validations";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import SuperAdminAuthorization from "@/components/hoc/SuperAdminAuth";
+import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { registerApi } from "@/lib/api";
+import { IRegister } from "@/components/interfaces/interfaces";
 
-interface Admin {
-  id: string;
+interface Admin extends IRegister {
+  _id: string;
   name: string;
   email: string;
   contact: string;
+  role: ERoles;
   password: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
-const mockAdmins: Admin[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@maulakalika.com",
-    contact: "+977-9841234567",
-    password: "password123",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane@maulakalika.com",
-    contact: "+977-9851234567",
-    password: "admin456",
-    createdAt: "2024-02-20",
-  },
-];
+const Admins: Admin[] = [];
 
 const AdminManagement = () => {
-  const [admins, setAdmins] = useState<Admin[]>(mockAdmins);
+  const [admins, setAdmins] = useState<Admin[] | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>(
-    {}
-  );
+  const [selectedAdmin, setSelectedAdmin] = useState<IRegister | null>(null);
+  const queryClient = new QueryClient();
 
+  // Fetch list of admins from API can be added here
+  const { data } = useQuery({
+    queryKey: ["admins"],
+    queryFn: registerApi.getAll,
+  });
+
+  useEffect(() => {
+    if (data?.data && data?.data && data?.data?.data) {
+      toast.success(data?.data?.message);
+      const newAdmins = [data?.data?.data];
+      setAdmins(newAdmins);
+    }
+  }, [data]);
+
+  // Form setup using react-hook-form and yup
   const {
     register,
     handleSubmit,
     setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<IAdmin>({
-    resolver: yupResolver(adminSchema),
+  } = useForm({
+    resolver: yupResolver(registerSchema),
     defaultValues: {
       name: "",
       email: "",
       contact: "",
-      password: "",
     },
   });
 
@@ -84,58 +83,80 @@ const AdminManagement = () => {
     reset();
   };
 
-  const onAddSubmit = (data: IAdmin) => {
-    console.log("Add Admin Form Data:", data);
-    const newAdmin: Admin = {
-      id: Date.now().toString(),
-      name: data.name,
-      email: data.email,
-      contact: data.contact,
-      password: data.password,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setAdmins([...admins, newAdmin]);
-    setShowAddDialog(false);
-    resetForm();
-    toast.success("Admin created successfully");
+  // New admin's data mutation function
+  const { mutate } = useMutation({
+    mutationFn: registerApi.create,
+    mutationKey: ["register-admin"],
+    onSuccess: (data) => {
+      toast.success("Admin created successfully");
+      setShowAddDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      reset();
+    },
+    onError: (err) => {
+      toast.error(err.name);
+    },
+  });
+
+  // Admin's data update mutation function
+  const updateAdminsData = useMutation({
+    mutationFn: registerApi.update,
+    mutationKey: ["update-admin"],
+    onSuccess: (data) => {
+      toast.success("Admin updated successfully");
+      setShowEditDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+    },
+    onError: (err) => {
+      toast.error(err.name);
+    },
+  });
+
+  // Delete admin mutation function
+  const deleteAdminData = useMutation({
+    mutationFn: registerApi.delete,
+    mutationKey: ["delete-admin"],
+    onSuccess: (data) => {
+      toast.success("Admin deleted successfully");
+      setShowDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+    },
+    onError: (err) => {
+      toast.error(err.name);
+    },
+  });
+
+  // Submit function
+  const onAddSubmit = (submitedValues: IRegister) => {
+    mutate(submitedValues);
   };
 
-  const onEditSubmit = (data: IAdmin) => {
-    if (!selectedAdmin) return;
-    console.log("Edit Admin Form Data:", data);
-    setAdmins(
-      admins.map((a) => (a.id === selectedAdmin.id ? { ...a, ...data } : a))
-    );
-    setShowEditDialog(false);
-    setSelectedAdmin(null);
-    resetForm();
-    toast.success("Admin updated successfully");
+  // Edit submit function
+  const onEditSubmit = (toUpdateValue: IRegister) => {
+    updateAdminsData.mutate(toUpdateValue);
+    console.log(toUpdateValue);
   };
 
+  // Delete function
   const handleDelete = () => {
-    if (!selectedAdmin) return;
-    setAdmins(admins.filter((a) => a.id !== selectedAdmin.id));
-    setShowDeleteDialog(false);
-    setSelectedAdmin(null);
-    toast.success("Admin deleted successfully");
+    // @ts-ignore
+    deleteAdminData.mutate(selectedAdmin?._id as string);
   };
 
-  const openEditDialog = (admin: Admin) => {
+  // Open dialogs
+  const openEditDialog = (admin: IRegister) => {
     setSelectedAdmin(admin);
     setValue("name", admin.name);
     setValue("email", admin.email);
     setValue("contact", admin.contact);
-    setValue("password", admin.password);
+    setValue("role", admin.role);
     setShowEditDialog(true);
   };
 
-  const openDeleteDialog = (admin: Admin) => {
+  // Open delete dialog
+  const openDeleteDialog = (admin: IRegister) => {
     setSelectedAdmin(admin);
     setShowDeleteDialog(true);
-  };
-
-  const togglePasswordVisibility = (id: string) => {
-    setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const openAddDialog = () => {
@@ -162,6 +183,7 @@ const AdminManagement = () => {
           </Button>
         </div>
 
+        {/* Admins list */}
         <div className="rounded-xl bg-card shadow-card overflow-hidden animate-slide-up">
           <Table>
             <TableHeader>
@@ -169,58 +191,59 @@ const AdminManagement = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Password</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {admins.map((admin) => (
-                <TableRow key={admin.id}>
-                  <TableCell className="font-medium">{admin.name}</TableCell>
-                  <TableCell>{admin.email}</TableCell>
-                  <TableCell>{admin.contact}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">
-                        {showPasswords[admin.id] ? admin.password : "••••••••"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => togglePasswordVisibility(admin.id)}
-                      >
-                        {showPasswords[admin.id] ? (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Eye className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>{admin.createdAt}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(admin)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openDeleteDialog(admin)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+              {admins && admins != null ? (
+                <>
+                  {/* @ts-ignore */}
+                  {admins[0]?.map((admin, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium">
+                        {admin.name}
+                      </TableCell>
+                      <TableCell>{admin.email}</TableCell>
+                      <TableCell>{admin.contact}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm">
+                            {admin.role}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{admin.createdAt.split("T")[0]}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(admin)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDeleteDialog(admin)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </>
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    No admins found.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>
@@ -295,6 +318,22 @@ const AdminManagement = () => {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Input
+                type="text"
+                placeholder="Enter role"
+                className={`bg-muted/30 ${
+                  errors.role ? "border-destructive" : ""
+                }`}
+                {...register("role")}
+              />
+              {errors.role && (
+                <p className="text-sm text-destructive">
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
             <DialogFooter>
               <Button
                 type="button"
@@ -303,9 +342,7 @@ const AdminManagement = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                Create Admin
-              </Button>
+              <Button type="submit">Create Admin</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -321,6 +358,7 @@ const AdminManagement = () => {
             <div className="space-y-2">
               <Label>Name</Label>
               <Input
+                defaultValue={selectedAdmin?.name ?? ""}
                 className={`bg-muted/30 ${
                   errors.name ? "border-destructive" : ""
                 }`}
@@ -336,6 +374,7 @@ const AdminManagement = () => {
               <Label>Email</Label>
               <Input
                 type="email"
+                defaultValue={selectedAdmin?.email ?? ""}
                 className={`bg-muted/30 ${
                   errors.email ? "border-destructive" : ""
                 }`}
@@ -350,6 +389,7 @@ const AdminManagement = () => {
             <div className="space-y-2">
               <Label>Contact</Label>
               <Input
+                defaultValue={selectedAdmin?.contact ?? ""}
                 className={`bg-muted/30 ${
                   errors.contact ? "border-destructive" : ""
                 }`}
@@ -365,6 +405,7 @@ const AdminManagement = () => {
               <Label>Password</Label>
               <Input
                 type="password"
+                defaultValue={selectedAdmin?.password ?? ""}
                 className={`bg-muted/30 ${
                   errors.password ? "border-destructive" : ""
                 }`}
@@ -376,6 +417,21 @@ const AdminManagement = () => {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Input
+                defaultValue={selectedAdmin?.role ?? ERoles.Admin}
+                className={`bg-muted/30 ${
+                  errors.role ? "border-destructive" : ""
+                }`}
+                {...register("role")}
+              />
+              {errors.role && (
+                <p className="text-sm text-destructive">
+                  {errors.role.message}
+                </p>
+              )}
+            </div>
             <DialogFooter>
               <Button
                 type="button"
@@ -384,7 +440,14 @@ const AdminManagement = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                onClick={() =>
+                  // @ts-ignore
+                  sessionStorage.setItem("admin", selectedAdmin?._id)
+                }
+                disabled={isSubmitting}
+              >
                 Save Changes
               </Button>
             </DialogFooter>
@@ -406,4 +469,5 @@ const AdminManagement = () => {
   );
 };
 
-export default SuperAdminAuthorization(AdminManagement, ["Super admin"]);
+// export default SuperAdminAuthorization(AdminManagement, ["Super admin"]);
+export default AdminManagement;

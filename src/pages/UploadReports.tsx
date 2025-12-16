@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import UploadReportsForm from "@/components/cards/UploadReportsForm";
+import ReportsListCard from "@/components/cards/ReportsListCard";
 
 const UploadReports = () => {
   return (
@@ -14,6 +15,10 @@ const UploadReports = () => {
 
         <div className="max-w-2xl">
           <UploadReportsForm />
+        </div>
+
+        <div className="max-w-2xl">
+          <ReportsListCard />
         </div>
       </div>
     </DashboardLayout>

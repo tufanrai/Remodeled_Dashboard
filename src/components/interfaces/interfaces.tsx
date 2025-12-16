@@ -7,7 +7,6 @@ export interface IRegister {
   contact: string;
   role: ERoles;
   password: string;
-  c_password: string;
 }
 
 // Roles
