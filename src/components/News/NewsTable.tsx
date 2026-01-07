@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Eye, Pencil, Trash2, X } from "lucide-react";
-import { newsSchema, INews } from "@/lib/validations";
+import { INews, IuNews, updateNewsSchema } from "@/lib/validations";
 import { newsApi } from "@/lib/api";
 import toast from "react-hot-toast";
 
@@ -37,8 +37,8 @@ export default function NewsTable() {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm<INews>({
-    resolver: yupResolver(newsSchema),
+  } = useForm<IuNews>({
+    resolver: yupResolver(updateNewsSchema),
   });
 
   const updateMutation = useMutation({
@@ -58,7 +58,7 @@ export default function NewsTable() {
     },
   });
 
-  const onSubmit = (updateValue: INews) => {
+  const onSubmit = (updateValue: IuNews) => {
     sessionStorage.setItem("file", editModal._id);
     updateMutation.mutate(updateValue);
   };

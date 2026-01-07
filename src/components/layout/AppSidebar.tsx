@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo.png";
 
 const navItems = [
   { label: "Dashboard", path: "/", icon: Home },
@@ -40,13 +41,26 @@ export function AppSidebar() {
     >
       {/* Logo Section */}
       <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center w-full")}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Zap className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
+        <div
+          className={cn(
+            "flex items-center gap-3",
+            collapsed && "justify-center w-full"
+          )}
+        >
+          <div
+            style={{
+              backgroundImage: `url("${logo}")`,
+              backgroundPosition: "center",
+              backgroundSize: "contain",
+              backgroundRepeat: "no-repeat",
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary"
+          ></div>
           {!collapsed && (
             <div className="animate-fade-in">
-              <h1 className="text-sm font-semibold leading-tight">Maulakalika</h1>
+              <h1 className="text-sm font-semibold leading-tight">
+                Maulakalika
+              </h1>
               <p className="text-xs text-sidebar-foreground/60">Hydropower</p>
             </div>
           )}
@@ -69,8 +83,15 @@ export function AppSidebar() {
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-sidebar-primary")} />
-              {!collapsed && <span className="animate-fade-in">{item.label}</span>}
+              <item.icon
+                className={cn(
+                  "h-5 w-5 shrink-0",
+                  isActive && "text-sidebar-primary"
+                )}
+              />
+              {!collapsed && (
+                <span className="animate-fade-in">{item.label}</span>
+              )}
             </NavLink>
           );
         })}

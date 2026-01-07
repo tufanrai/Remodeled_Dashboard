@@ -42,7 +42,7 @@ export interface IDownload {
 
 // image upload
 export interface IImage {
-  image: File;
+  image?: File;
   category: string;
   alt: string;
 }

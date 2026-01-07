@@ -15,12 +15,11 @@ const LoginForm = () => {
     mutationFn: logAdmin,
     mutationKey: ["Log the admin in"],
     onSuccess: (data) => {
-      console.log(data);
       toast.success(data?.message);
       Cookies.set("access", data?.token);
       setTimeout(() => {
         navigate("/");
-      }, 2000);
+      }, 500);
     },
     onError: (err) => {
       toast.error(err.name);

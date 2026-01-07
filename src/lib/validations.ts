@@ -36,19 +36,12 @@ export const imageSchema = yup.object({
 
 // Image Schema
 export const imageUpdateSchema = yup.object({
-  image: yup
-    .mixed<File>()
-    .test(
-      "fileExists",
-      "Please upload a file",
-      (value) => value instanceof File
-    ),
+  image: yup.mixed<File>(),
   category: yup.string(),
   alt: yup.string().max(200, "Alt text must be less than 200 characters"),
 });
-
 export interface IImage {
-  image: File;
+  image?: File;
   category: string;
   alt: string;
 }
@@ -168,6 +161,24 @@ export const newsSchema = yup.object({
 
 export type INews = yup.InferType<typeof newsSchema>;
 
+// new News schema
+export const updateNewsSchema = yup.object({
+  file: yup.mixed<File>(),
+  title: yup
+    .string()
+    .required("Title is required")
+    .max(200, "Title must be less than 200 characters"),
+  excerpt: yup
+    .string()
+    .required("Excerpt is required")
+    .max(300, "Excerpt must be less than 300 characters"),
+  date: yup.string().required("Date is required"),
+  category: yup.string().required("Category is required"),
+  description: yup.string().required("Description is required"),
+});
+
+export type IuNews = yup.InferType<typeof updateNewsSchema>;
+
 // Reports Schema
 export const reportsSchema = yup.object({
   file: yup
@@ -257,9 +268,5 @@ export const loginSchema = yup.object({
     .string()
     .required("Email is required")
     .email("Invalid email address"),
-  contact: yup.string().required("Contact is required"),
-  password: yup
-    .string()
-    .required("Password is required")
-    .min(6, "Password must be at least 6 characters"),
+  password: yup.string().required("Password is required"),
 });

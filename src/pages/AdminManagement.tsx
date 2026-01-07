@@ -63,6 +63,7 @@ const AdminManagement = () => {
     }
   }, [data]);
 
+  console.log(admins);
   // Form setup using react-hook-form and yup
   const {
     register,
@@ -469,5 +470,4 @@ const AdminManagement = () => {
   );
 };
 
-// export default SuperAdminAuthorization(AdminManagement, ["Super admin"]);
-export default AdminManagement;
+export default SuperAdminAuthorization(AdminManagement, ["Super Admin"]);

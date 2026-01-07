@@ -1,8 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search, User, LogOut } from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +24,6 @@ interface IUser {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [user, setUser] = useState<IUser>({
     name: "Admin",
     email: "admin@example.com",
@@ -105,4 +103,4 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   );
 };
 
-export default WithAuthorization(DashboardLayout, ["Admin", "Super admin"]);
+export default WithAuthorization(DashboardLayout, ["Admin", "Super Admin"]);
